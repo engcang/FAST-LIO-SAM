@@ -1,0 +1,18 @@
+<launch>
+
+	<arg name="rviz" default="false" />
+	<arg name="lidar" default="ouster" /> <!-- ouster, velodyne, livox -->
+
+	<!-- <rosparam command="load" file="$(find fast_lio_sam)/config/config.yaml" /> -->
+
+	<node pkg="fast_lio_sam" type="fast_lio_sam_node" name="fast_lio_sam_node" output="screen" /> 
+
+	<group if="$(arg rviz)">
+		<node pkg="rviz" type="rviz" name="rviz" args="-d $(find fast_lio_sam)/rviz.rviz" launch-prefix="nice"/>
+	</group>
+
+	<include file="$(find fast_lio)/launch/mapping_ouster64.launch">
+		<arg name="rviz" value="false"/>
+	</include>
+
+</launch>
