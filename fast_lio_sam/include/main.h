@@ -29,6 +29,7 @@
 #include <pcl/common/transforms.h> //transformPointCloud
 #include <pcl/conversions.h> //ros<->pcl
 #include <pcl_conversions/pcl_conversions.h> //ros<->pcl
+#include <pcl/registration/gicp.h>
 ///// Eigen
 #include <Eigen/Eigen> // whole Eigen library: Sparse(Linearalgebra) + Dense(Core+Geometry+LU+Cholesky+SVD+QR+Eigenvalues)
 ///// GTSAM
@@ -55,9 +56,10 @@ struct pose_pcd
   pcl::PointCloud<pcl::PointXYZI> pcd;
   gtsam::Pose3 pose_gtsam;
   Eigen::Matrix4d pose_eig;
-  bool keyframe=false;
+  double timestamp;
   pose_pcd(const nav_msgs::Odometry &odom_in, const sensor_msgs::PointCloud2 &pcd_in)
   {
+    timestamp = odom_in.header.stamp.toSec();
     pcl::fromROSMsg(pcd_in, pcd);
     tf::Quaternion q_(odom_in.pose.pose.orientation.x, odom_in.pose.pose.orientation.y, odom_in.pose.pose.orientation.z, odom_in.pose.pose.orientation.w);
     tf::Matrix3x3 m_(q_);
@@ -69,7 +71,7 @@ struct pose_pcd
     pose_eig(2, 3) = odom_in.pose.pose.position.z;
     pose_gtsam = gtsam::Pose3(gtsam::Rot3::Quaternion(odom_in.pose.pose.orientation.w, odom_in.pose.pose.orientation.x, odom_in.pose.pose.orientation.y, odom_in.pose.pose.orientation.z), 
                               gtsam::Point3(odom_in.pose.pose.position.x, odom_in.pose.pose.position.y, odom_in.pose.pose.position.z));
-  }
+  }  
 };
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 class FAST_LIO_SAM_CLASS
@@ -81,31 +83,36 @@ class FAST_LIO_SAM_CLASS
     mutex m_pose_pcd_mutex;
     vector<pose_pcd> m_pose_pcd_vec;
     bool m_init=false;
-    int m_last_key_idx=0;
     ///// graph and values
+    shared_ptr<gtsam::ISAM2> m_isam_handler = nullptr;
     gtsam::NonlinearFactorGraph m_gtsam_graph;
     gtsam::Values m_init_esti;
     gtsam::Values m_corrected_esti;
-    int m_graph_idx=0;
+    double m_keyframe_thr;
+    ///// loop
+    pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZI, pcl::PointXYZI> m_gicp;
+    double m_gicp_score_thr;
+    double m_loop_det_radi;
+    double m_loop_det_tdiff_thr;
     
-    // shared_ptr<Frontier_handler> m_fron_handler = nullptr;
     ///// ros
     ros::NodeHandle m_nh;
-    ros::Subscriber m_odom_sub;
-    ros::Publisher m_corrected_odom_pub, m_corrected_path_pub, m_corrected_pcd_pub, m_loop_closure_pub;
-    // ros::Timer m_graph_timer;
+    ros::Publisher m_odom_pub, m_path_pub;
+    ros::Publisher m_corrected_odom_pub, m_corrected_path_pub;
+    ros::Publisher m_corrected_pcd_pub, m_loop_closure_pub;
+    ros::Timer m_vis_timer;
     // odom, pcd sync subscriber
-    message_filters::Synchronizer<odom_pcd_sync_pol> *m_sub_odom_pcd_sync;
-    message_filters::Subscriber<nav_msgs::Odometry> *m_sub_odom;
-    message_filters::Subscriber<sensor_msgs::PointCloud2> *m_sub_pcd;
+    shared_ptr<message_filters::Synchronizer<odom_pcd_sync_pol>> m_sub_odom_pcd_sync = nullptr;
+    shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> m_sub_odom = nullptr;
+    shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> m_sub_pcd = nullptr;
 
     ///// functions
   public:
     FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private);
   private:
-    inline bool check_if_keyframe();
+    inline bool check_if_keyframe(const nav_msgs::Odometry &odom_in);
     void odom_pcd_cb(const nav_msgs::OdometryConstPtr &odom_msg, const sensor_msgs::PointCloud2ConstPtr &pcd_msg);
-    void graph_timer_func(const ros::TimerEvent& event);
+    void vis_timer_func(const ros::TimerEvent& event);
     
 };
 
@@ -116,90 +123,119 @@ class FAST_LIO_SAM_CLASS
 FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(n_private)
 {
   ////////// ROS params
-  // temp vars
-  // double graph_update_hz_;
-  // m_nh.param<double>("/graph_update_hz", graph_update_hz_, false);
-  // m_nh.param<bool>("/computing_time_debug", m_computing_time_debug, false);
+  m_nh.param<string>("/map_frame", m_map_frame, "map");
+  m_nh.param<double>("/keyframe_threshold", m_keyframe_thr, 1.0);
+  m_nh.param<double>("/loop_detection_radius", m_loop_det_radi, 15.0);
+  m_nh.param<double>("/loop_detection_timediff_threshold", m_loop_det_tdiff_thr, 10.0);
+  m_nh.param<double>("/gicp_score_threshold", m_gicp_score_thr, 10.0);
   // m_nh.getParam("/cam_tf", cam_tf_);
-  // m_fron_handler = make_shared<Frontier_handler>(fron_vox_res_);
+
+  ////////// GTSAM init
+  gtsam::ISAM2Params isam_params_;
+  isam_params_.relinearizeThreshold = 0.01;
+  isam_params_.relinearizeSkip = 1;
+  m_isam_handler = std::make_shared<gtsam::ISAM2>(isam_params_);
+  ////////// loop init
+  m_gicp.setTransformationEpsilon(0.1);
+  m_gicp.setMaxCorrespondenceDistance(m_loop_det_radi*2.0); //TODO: adptively adjust
+  m_gicp.setMaximumIterations(100);
+  m_gicp.setEuclideanFitnessEpsilon(1);
 
   ////////// ROS things
   //// publishers
   // m_kdtree_pub = m_nh.advertise<sensor_msgs::PointCloud2>("/kdtree", 3, true);
   /// subscribers
   // odom, pcd sync subscriber
-  m_sub_odom = new message_filters::Subscriber<nav_msgs::Odometry>(m_nh, "/Odometry", 10);
-  m_sub_pcd = new message_filters::Subscriber<sensor_msgs::PointCloud2>(m_nh, "/cloud_registered", 10);
-  m_sub_odom_pcd_sync = new message_filters::Synchronizer<odom_pcd_sync_pol>(odom_pcd_sync_pol(10), *m_sub_odom, *m_sub_pcd);
+  m_sub_odom = std::make_shared<message_filters::Subscriber<nav_msgs::Odometry>>(m_nh, "/Odometry", 10);
+  m_sub_pcd = std::make_shared<message_filters::Subscriber<sensor_msgs::PointCloud2>>(m_nh, "/cloud_registered", 10);
+  m_sub_odom_pcd_sync = std::make_shared<message_filters::Synchronizer<odom_pcd_sync_pol>>(odom_pcd_sync_pol(10), *m_sub_odom, *m_sub_pcd);
   m_sub_odom_pcd_sync->registerCallback(boost::bind(&FAST_LIO_SAM_CLASS::odom_pcd_cb, this, _1, _2));
   //// Timers at the end
-  // m_graph_timer = m_nh.createTimer(ros::Duration(1/graph_update_hz_), &FAST_LIO_SAM_CLASS::graph_timer_func, this);
+  // m_vis_timer = m_nh.createTimer(ros::Duration(1/2.0), &FAST_LIO_SAM_CLASS::vis_timer_func, this);
   
   ROS_WARN("Main class, starting node...");
 }
 
 void FAST_LIO_SAM_CLASS::odom_pcd_cb(const nav_msgs::OdometryConstPtr &odom_msg, const sensor_msgs::PointCloud2ConstPtr &pcd_msg)
 {
-  high_resolution_clock::time_point t1 = high_resolution_clock::now();
-  //// 1. save odom/pcd sub
-  // {
-    // lock_guard<mutex> lock(m_pose_pcd_mutex);
-    m_pose_pcd_vec.push_back(pose_pcd(*odom_msg, *pcd_msg));
-  // }
-  high_resolution_clock::time_point t2 = high_resolution_clock::now();
-  //// 2. graph update
-  if (!m_init) //// 2-0. only once
+  if (!m_init) //// 1. init only once
   {
+    //save
+    {
+      lock_guard<mutex> lock(m_pose_pcd_mutex);
+      m_pose_pcd_vec.push_back(pose_pcd(*odom_msg, *pcd_msg));
+    }
     //graph
     gtsam::noiseModel::Diagonal::shared_ptr prior_noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4).finished()); // rad*rad, meter*meter
     m_gtsam_graph.add(gtsam::PriorFactor<gtsam::Pose3>(0, m_pose_pcd_vec.back().pose_gtsam, prior_noise));
     m_init_esti.insert(0, m_pose_pcd_vec.back().pose_gtsam);
-    //others
-    m_pose_pcd_vec.back().keyframe = true;
-    m_last_key_idx = 0;
     m_init = true;
     return;
   }
   else
   {
+    high_resolution_clock::time_point t1 = high_resolution_clock::now();
     //// 2-1. check if keyframe
-    bool if_keyframe = check_if_keyframe(); // TODO: adaptively check keyframe
-    high_resolution_clock::time_point t3 = high_resolution_clock::now();
+    bool if_keyframe = check_if_keyframe(*odom_msg); // TODO: adaptively check keyframe
+    high_resolution_clock::time_point t2 = high_resolution_clock::now();
     
-    if (if_keyframe)
+    if (if_keyframe) //if so,
     {
-      //// 2-2. if so, add to graph
+      //save
+      {
+        lock_guard<mutex> lock(m_pose_pcd_mutex);
+        m_pose_pcd_vec.push_back(pose_pcd(*odom_msg, *pcd_msg));
+      }
+      //// 2-2. add to graph
       //graph
       gtsam::noiseModel::Diagonal::shared_ptr odom_noise = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << 1e-4, 1e-4, 1e-4, 1e-2, 1e-2, 1e-2).finished()); //TODO: adaptively parameterizing
-      gtsam::Pose3 pose_from = m_pose_pcd_vec[m_last_key_idx].pose_gtsam;
+      gtsam::Pose3 pose_from = m_pose_pcd_vec[m_pose_pcd_vec.size()-2].pose_gtsam;
       gtsam::Pose3 pose_to = m_pose_pcd_vec.back().pose_gtsam;
-      m_gtsam_graph.add(gtsam::BetweenFactor<gtsam::Pose3>(m_graph_idx, m_graph_idx+1, pose_from.between(pose_to), odom_noise));
-      m_init_esti.insert(m_graph_idx+1, pose_to);
-      m_graph_idx++;
-      //others
-      m_pose_pcd_vec.back().keyframe = true;
-      m_last_key_idx = m_pose_pcd_vec.size()-1;
-      high_resolution_clock::time_point t4 = high_resolution_clock::now();
-      //// 2-3. if so, check loop-closure and add to graph
+      m_gtsam_graph.add(gtsam::BetweenFactor<gtsam::Pose3>(m_pose_pcd_vec.size()-2, m_pose_pcd_vec.size()-1, pose_from.between(pose_to), odom_noise));
+      m_init_esti.insert(m_pose_pcd_vec.size()-1, pose_to);
+      high_resolution_clock::time_point t3 = high_resolution_clock::now();
+      
+      //// 2-3. check loop-closure and add to graph
       // from current new keyframe to old keyframes in threshold radius,
-      // if matchness score is higher than threshold,
-      high_resolution_clock::time_point t5 = high_resolution_clock::now();
+      for (int i = 0; i < m_pose_pcd_vec.size()-1; ++i)
+      {
+        //check if potential loop: close enough in distance, far enough in time
+        if (m_loop_det_radi > (m_pose_pcd_vec[i].pose_eig.block<3, 1>(0, 3) - m_pose_pcd_vec.back().pose_eig.block<3, 1>(0, 3)).norm() 
+            && m_loop_det_tdiff_thr < (m_pose_pcd_vec.back().timestamp - m_pose_pcd_vec[i].timestamp))
+        {
+          // match with GICP
+          pcl::PointCloud<pcl::PointXYZI>::Ptr src_(new pcl::PointCloud<pcl::PointXYZI>);
+          pcl::PointCloud<pcl::PointXYZI>::Ptr dst_(new pcl::PointCloud<pcl::PointXYZI>);
+          pcl::PointCloud<pcl::PointXYZI> dummy_;
+          *src_ = m_pose_pcd_vec.back().pcd;
+          *dst_ = m_pose_pcd_vec[i].pcd;
+          m_gicp.setInputSource(src_);
+          m_gicp.setInputTarget(dst_);
+          m_gicp.align(dummy_);
+          // if matchness score is lower than threshold, (lower is better)
+          double score_ = m_gicp.getFitnessScore();
+          if(m_gicp.hasConverged() && score_ < m_gicp_score_thr)
+          {
+            Eigen::Matrix4f pose_between_ = m_gicp.getFinalTransformation();
+          }
+        }
+      }
+      high_resolution_clock::time_point t4 = high_resolution_clock::now();
       //// 3. optimize with graph
       m_corrected_esti = gtsam::LevenbergMarquardtOptimizer(m_gtsam_graph, m_init_esti).optimize();
-      high_resolution_clock::time_point t6 = high_resolution_clock::now();
+      high_resolution_clock::time_point t5 = high_resolution_clock::now();
       //// 4. correct poses in path
-      high_resolution_clock::time_point t7 = high_resolution_clock::now();
+      high_resolution_clock::time_point t6 = high_resolution_clock::now();
       //// 5. correct pcd
-      high_resolution_clock::time_point t8 = high_resolution_clock::now();
+      high_resolution_clock::time_point t7 = high_resolution_clock::now();
       //// 6. visualize
-      high_resolution_clock::time_point t9 = high_resolution_clock::now();
+      high_resolution_clock::time_point t8 = high_resolution_clock::now();
       
-      ROS_INFO("add: %.1f, key: %.1f, graph: %.1f, loop: %.1f, opt: %.1f, cor_p: %.1f, cor_l: %.1f, vis: %.1f, tot: %.1fms", 
+      ROS_INFO("key: %.1f, graph: %.1f, loop: %.1f, opt: %.1f, cor_p: %.1f, cor_l: %.1f, vis: %.1f, tot: %.1fms", 
               duration_cast<microseconds>(t2-t1).count()/1e3, duration_cast<microseconds>(t3-t2).count()/1e3,
               duration_cast<microseconds>(t4-t3).count()/1e3, duration_cast<microseconds>(t5-t4).count()/1e3,
               duration_cast<microseconds>(t6-t5).count()/1e3, duration_cast<microseconds>(t7-t6).count()/1e3,
-              duration_cast<microseconds>(t8-t7).count()/1e3, duration_cast<microseconds>(t9-t8).count()/1e3,
-              duration_cast<microseconds>(t9-t1).count()/1e3);
+              duration_cast<microseconds>(t8-t7).count()/1e3, duration_cast<microseconds>(t8-t1).count()/1e3);
     }
   }
 
@@ -214,9 +250,9 @@ void FAST_LIO_SAM_CLASS::odom_pcd_cb(const nav_msgs::OdometryConstPtr &odom_msg,
   return;
 }
 
-inline bool FAST_LIO_SAM_CLASS::check_if_keyframe()
+inline bool FAST_LIO_SAM_CLASS::check_if_keyframe(const nav_msgs::Odometry &odom_in)
 {
-  return 1.0 < (m_pose_pcd_vec[m_last_key_idx].pose_eig.block<3, 1>(0, 3) - m_pose_pcd_vec.back().pose_eig.block<3, 1>(0, 3)).norm();
+  return m_keyframe_thr < (m_pose_pcd_vec.back().pose_eig.block<3, 1>(0, 3) - Eigen::Vector3d(odom_in.pose.pose.position.x, odom_in.pose.pose.position.y, odom_in.pose.pose.position.z)).norm();
 }
 
 

@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.4)
 project(fast_lio_sam)
 
+### set compiler
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS "-std=c++14 -pthread -fexceptions -g -ggdb") #-fopenmp 
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -Wextra ${CMAKE_CXX_FLAGS}")
 
+### get packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
@@ -32,6 +34,7 @@ endif()
 
 catkin_package() #this automatically adds/installs the results of build
 
+### get packages' headers
 include_directories(
   include
 	${catkin_INCLUDE_DIRS}
@@ -44,6 +47,6 @@ include_directories(
 ###########
 ## Build ##
 ###########
-#### main
+### main
 add_executable(${PROJECT_NAME}_node src/main.cpp)
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
