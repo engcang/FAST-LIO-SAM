@@ -62,7 +62,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Group
       Displays:
-        - Alpha: 0.800000011920929
+        - Alpha: 0.4000000059604645
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
             Max Value: 10
@@ -83,7 +83,7 @@ Visualization Manager:
           Queue Size: 1
           Selectable: false
           Size (Pixels): 1
-          Size (m): 0.029999999329447746
+          Size (m): 0.03999999910593033
           Style: Flat Squares
           Topic: /corrected_map
           Unreliable: false
@@ -273,16 +273,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 248.3515625
+      Distance: 232.00962829589844
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -29.184329986572266
-        Y: -81.05513000488281
-        Z: -17.261568069458008
+        X: -28.859516143798828
+        Y: -77.12323760986328
+        Z: 0.07755077630281448
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -291,7 +291,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.6003978252410889
+      Yaw: 1.6103975772857666
     Saved: ~
 Window Geometry:
   Displays:

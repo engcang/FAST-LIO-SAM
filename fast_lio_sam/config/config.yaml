@@ -4,5 +4,6 @@ loop_detection_radius: 10.0                 # unit [meter] within this radius, c
 loop_detection_timediff_threshold: 30.0     # unit [sec] check if two keyframes are loop if times are farther than this
 keyframe_threshold: 1.0                     # unit [meter] every this distance, generate keyframe
 gicp_score_threshold: 1.0                   # lower is more accurate, for loop detection
+subkeyframes_number: 3                      # how many subkeyframes are merged to gicp with current keyframe (closest-this ~ closest+this, if exists)
 
 pgo_update_hz: 2.0                          # Pose graph update and optimization Hz

@@ -111,7 +111,7 @@ Visualization Manager:
           Queue Size: 100000
           Selectable: true
           Size (Pixels): 1
-          Size (m): 0.009999999776482582
+          Size (m): 0.019999999552965164
           Style: Squares
           Topic: /cloud_registered
           Unreliable: false
