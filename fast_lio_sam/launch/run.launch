@@ -9,13 +9,13 @@
 
 
 
-	<include if="$(eval (arg lidar) == 'ouster'" file="$(find fast_lio)/launch/mapping_ouster64.launch">
+	<include if="$(eval arg ('lidar') == 'ouster')" file="$(find fast_lio)/launch/mapping_ouster64.launch">
 		<arg name="rviz" value="false"/>
 	</include>
-	<include if="$(eval (arg lidar) == 'velodyne'" file="$(find fast_lio)/launch/mapping_velodyne.launch">
+	<include if="$(eval arg ('lidar') == 'velodyne')" file="$(find fast_lio)/launch/mapping_velodyne.launch">
 		<arg name="rviz" value="false"/>
 	</include>
-	<include if="$(eval (arg lidar) == 'livox'" file="$(find fast_lio)/launch/mapping_avia.launch">
+	<include if="$(eval arg ('lidar') == 'livox')" file="$(find fast_lio)/launch/mapping_avia.launch">
 		<arg name="rviz" value="false"/>
 	</include>
 

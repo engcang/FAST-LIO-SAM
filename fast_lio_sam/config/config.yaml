@@ -1,5 +1,5 @@
-map_frame: "map"                            # publish frame
-loop_detection_radius: 15.0                 # unit [meter] within this radius, check if loop or not
-loop_detection_timediff_threshold: 5.0      # unit [sec] check if two keyframes are loop if times are farther than this
-keyframe_threshold: 1.0                     # unit [meter] every this distance, generate keyframe
-gicp_score_threshold: 1.0                   # lower is more accurate
+map_frame: "camera_init"                            # publish frame
+loop_detection_radius: 10.0                  # unit [meter] within this radius, check if loop or not
+loop_detection_timediff_threshold: 30.0     # unit [sec] check if two keyframes are loop if times are farther than this
+keyframe_threshold: 1.5                     # unit [meter] every this distance, generate keyframe
+gicp_score_threshold: 1.0                   # lower is more accurate, for loop detection

@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
   sensor_msgs
+  visualization_msgs
   tf
   tf_conversions
   pcl_ros
