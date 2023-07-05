@@ -1,5 +1,6 @@
 # FAST-LIO-SAM
 + This repository is a SLAM implementation combining [FAST-LIO2](https://github.com/hku-mars/FAST_LIO) with pose graph optimization and loop closing based on [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM) paper
+    + Loop-detection is based on radius search and GICP is used to calc matching
 + To learn GTSAM myself!
 + Note: similar repositories already exist
     + [FAST_LIO_LC](https://github.com/yanliang-wang/FAST_LIO_LC): FAST-LIO2 + SC-A-LOAM based SLAM
