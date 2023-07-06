@@ -1,5 +1,5 @@
 # Note
-+ 2023. 07. 06. Code is not completed yet. I am planning to finish this within this week.
++ 2023-07-06: Code is not completed yet. I am planning to finish this within this week.
 
 <br>
 
