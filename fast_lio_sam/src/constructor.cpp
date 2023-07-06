@@ -16,19 +16,21 @@ pose_pcd::pose_pcd(const nav_msgs::Odometry &odom_in, const sensor_msgs::PointCl
   pose_gtsam = gtsam::Pose3(gtsam::Rot3::Quaternion(odom_in.pose.pose.orientation.w, odom_in.pose.pose.orientation.x, odom_in.pose.pose.orientation.y, odom_in.pose.pose.orientation.z), 
                             gtsam::Point3(odom_in.pose.pose.position.x, odom_in.pose.pose.position.y, odom_in.pose.pose.position.z));
 }
+
 FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(n_private)
 {
   ////// ROS params
   // temp vars
-  double pgo_update_hz_;
+  double pgo_update_hz_, vis_hz_;
   // get params
   m_nh.param<string>("/map_frame", m_map_frame, "map");
   m_nh.param<double>("/keyframe_threshold", m_keyframe_thr, 1.0);
   m_nh.param<double>("/loop_detection_radius", m_loop_det_radi, 15.0);
   m_nh.param<double>("/loop_detection_timediff_threshold", m_loop_det_tdiff_thr, 10.0);
   m_nh.param<double>("/gicp_score_threshold", m_gicp_score_thr, 10.0);
-  m_nh.param<double>("/pgo_update_hz", pgo_update_hz_, 3.0);
   m_nh.param<int>("/subkeyframes_number", m_sub_key_num, 3);
+  m_nh.param<double>("/pgo_update_hz", pgo_update_hz_, 3.0);
+  m_nh.param<double>("/vis_hz", vis_hz_, 3.0);
 
   ////// GTSAM init
   gtsam::ISAM2Params isam_params_;
@@ -38,7 +40,7 @@ FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(
   ////// loop init
   m_voxelgrid.setLeafSize(0.3, 0.3, 0.3);
   m_gicp.setTransformationEpsilon(0.1);
-  m_gicp.setMaxCorrespondenceDistance(m_loop_det_radi*1.5);
+  m_gicp.setMaxCorrespondenceDistance(m_loop_det_radi*2.0);
   m_gicp.setMaximumIterations(100);
   m_gicp.setEuclideanFitnessEpsilon(1);
 
@@ -61,6 +63,7 @@ FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(
   m_sub_odom_pcd_sync->registerCallback(boost::bind(&FAST_LIO_SAM_CLASS::odom_pcd_cb, this, _1, _2));
   // Timers at the end
   m_pgo_timer = m_nh.createTimer(ros::Duration(1/pgo_update_hz_), &FAST_LIO_SAM_CLASS::pgo_timer_func, this);
+  m_vis_timer = m_nh.createTimer(ros::Duration(1/vis_hz_), &FAST_LIO_SAM_CLASS::vis_timer_func, this);
   
   ROS_WARN("Main class, starting node...");
 }

@@ -10,10 +10,23 @@ void FAST_LIO_SAM_CLASS::update_vis_vars(const pose_pcd &pose_pcd_in)
   m_corrected_path.poses.push_back(pose_path_);
   return;
 }
+
+void FAST_LIO_SAM_CLASS::voxlize_pcd(pcl::PointCloud<pcl::PointXYZI> &pcd_in)
+{
+  pcl::PointCloud<pcl::PointXYZI>::Ptr before_(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr after_(new pcl::PointCloud<pcl::PointXYZI>);
+  *before_ = pcd_in;
+  m_voxelgrid.setInputCloud(before_);
+  m_voxelgrid.filter(*after_);
+  pcd_in = *after_;
+  return;
+}
+
 bool FAST_LIO_SAM_CLASS::check_if_keyframe(const pose_pcd &pose_pcd_in)
 {
   return m_keyframe_thr < (m_keyframes.back().pose_eig.block<3, 1>(0, 3) - pose_pcd_in.pose_eig.block<3, 1>(0, 3)).norm();
 }
+
 int FAST_LIO_SAM_CLASS::get_closest_keyframe_idx(const vector<pose_pcd> &keyframes)
 {
   double shortest_distance_ = m_loop_det_radi*3.0;
@@ -33,6 +46,7 @@ int FAST_LIO_SAM_CLASS::get_closest_keyframe_idx(const vector<pose_pcd> &keyfram
   }
   return closest_idx_;
 }
+
 visualization_msgs::Marker FAST_LIO_SAM_CLASS::get_loop_markers()
 {
   visualization_msgs::Marker edges_; edges_.type = 5u;
@@ -50,6 +64,7 @@ visualization_msgs::Marker FAST_LIO_SAM_CLASS::get_loop_markers()
   }
   return edges_;
 }
+
 void FAST_LIO_SAM_CLASS::gicp_key_to_subkeys(const int &closest_idx)
 {
 	// merge subkeyframes before GICP

@@ -1,3 +1,8 @@
+# Note
++ 2023. 07. 06. Code is not completed yet. I am planning to finish this within this week.
+
+<br>
+
 # FAST-LIO-SAM
 + This repository is a SLAM implementation combining [FAST-LIO2](https://github.com/hku-mars/FAST_LIO) with pose graph optimization and loop closing based on [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM) paper
     + Loop-detection is based on radius search and GICP is used to calc matching

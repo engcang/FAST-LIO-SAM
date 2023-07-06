@@ -29,6 +29,7 @@ void FAST_LIO_SAM_CLASS::odom_pcd_cb(const nav_msgs::OdometryConstPtr &odom_msg,
   }
   return;
 }
+
 void FAST_LIO_SAM_CLASS::pgo_timer_func(const ros::TimerEvent& event)
 {
   if (!m_init) return;
@@ -57,6 +58,7 @@ void FAST_LIO_SAM_CLASS::pgo_timer_func(const ros::TimerEvent& event)
     high_resolution_clock::time_point t3_ = high_resolution_clock::now();
     
     //// 3. check loop-closure and add to graph
+    bool if_loop_occured_ = false;
     // from current new keyframe to old keyframes in threshold radius, get the closest keyframe
     int closest_keyframe_idx_ = get_closest_keyframe_idx(m_keyframes);
     if (closest_keyframe_idx_ >= 0) //if exists
@@ -72,7 +74,7 @@ void FAST_LIO_SAM_CLASS::pgo_timer_func(const ros::TimerEvent& event)
         gtsam::noiseModel::Diagonal::shared_ptr loop_noise_ = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(6) << score_, score_, score_, score_, score_, score_).finished());
         m_gtsam_graph.add(gtsam::BetweenFactor<gtsam::Pose3>(m_keyframes.size()-1, closest_keyframe_idx_, pose_eig_to_gtsam_pose(pose_between_eig_), loop_noise_));
         m_loop_idx_pairs.push_back({m_keyframes.size()-1, closest_keyframe_idx_}); //for vis
-        m_loop_added_flag = true;
+        if_loop_occured_ = true;
       }
     }
     high_resolution_clock::time_point t4_ = high_resolution_clock::now();
@@ -86,9 +88,6 @@ void FAST_LIO_SAM_CLASS::pgo_timer_func(const ros::TimerEvent& event)
     m_isam_handler->update();
     m_gtsam_graph.resize(0);
     m_init_esti.clear();
-    high_resolution_clock::time_point t5_ = high_resolution_clock::now();
-    
-    //// 5. processing with corrected poses
     // get corrected results
     m_corrected_esti = m_isam_handler->calculateEstimate();
     m_last_corrected_pose = gtsam_pose_to_pose_eig(m_corrected_esti.at<gtsam::Pose3>(m_corrected_esti.size()-1));
@@ -96,44 +95,53 @@ void FAST_LIO_SAM_CLASS::pgo_timer_func(const ros::TimerEvent& event)
     {
       lock_guard<mutex> lock(m_odom_delta_mutex);
       m_odom_delta = Eigen::Matrix4d::Identity();
-    }
-    // stack pcd in corrected pose frame
-    pcl::PointCloud<pcl::PointXYZI> tmp_pcd_;
-    pcl::transformPointCloud(m_keyframes.back().pcd, tmp_pcd_, (m_keyframes.back().pose_eig.inverse()*m_last_corrected_pose).cast<float>());
-    m_corrected_map += tmp_pcd_;
-    m_corrected_current_pcd_pub.publish(pcl_to_pcl_ros(tmp_pcd_, m_map_frame)); // pub current scan in corrected pose frame
-    //if loop closed,
-    if (m_loop_added_flag) 
-    {
-      // correct pose and path
-      m_corrected_odoms.clear();
-      m_corrected_path.poses.clear();
-      for (int i = 0; i < m_corrected_esti.size(); ++i)
-      {
-        gtsam::Pose3 pose_ = m_corrected_esti.at<gtsam::Pose3>(i);
-        m_corrected_odoms.points.emplace_back(pose_.translation().x(), pose_.translation().y(), pose_.translation().z());
-        m_corrected_path.poses.push_back(gtsam_pose_to_pose_stamped(pose_, m_map_frame));
-      }
-      // correct pcd
-      m_corrected_map.clear();
-      for (int i = 0; i < m_corrected_esti.size(); ++i)
-      {
-        pcl::PointCloud<pcl::PointXYZI> tmp_pcd_;
-        pcl::transformPointCloud(m_keyframes[i].pcd, tmp_pcd_, (m_keyframes[i].pose_eig.inverse()*gtsam_pose_to_pose_eig(m_corrected_esti.at<gtsam::Pose3>(i))).cast<float>());
-        m_corrected_map += tmp_pcd_;
-      }
-      m_loop_added_flag = false;
-    }
-    high_resolution_clock::time_point t6_ = high_resolution_clock::now();
-    ROS_INFO("key: %.1f, graph: %.1f, loop: %.1f, opt: %.1f, corr: %.1f, tot: %.1fms", 
+    }    
+    high_resolution_clock::time_point t5_ = high_resolution_clock::now();
+    
+    ROS_INFO("key: %.1f, graph: %.1f, loop: %.1f, opt: %.1f, tot: %.1fms", 
             duration_cast<microseconds>(t2_-t1_).count()/1e3, duration_cast<microseconds>(t3_-t2_).count()/1e3,
             duration_cast<microseconds>(t4_-t3_).count()/1e3, duration_cast<microseconds>(t5_-t4_).count()/1e3,
-            duration_cast<microseconds>(t6_-t5_).count()/1e3, duration_cast<microseconds>(t6_-t1_).count()/1e3);
+            duration_cast<microseconds>(t5_-t1_).count()/1e3);
+
+    if (if_loop_occured_) m_loop_added_flag = true;
   }
-  
-  //// 6. visualize
+
+  return;
+}
+
+void FAST_LIO_SAM_CLASS::vis_timer_func(const ros::TimerEvent& event)
+{
   high_resolution_clock::time_point tv1_ = high_resolution_clock::now();
-  if (!m_loop_idx_pairs.empty()) m_loop_detection_pub.publish(get_loop_markers());
+  //if loop closed,
+  if (m_loop_added_flag) 
+  {
+    // correct pose and path
+    m_corrected_odoms.clear();
+    m_corrected_path.poses.clear();
+    for (int i = 0; i < m_corrected_esti.size(); ++i)
+    {
+      gtsam::Pose3 pose_ = m_corrected_esti.at<gtsam::Pose3>(i);
+      m_corrected_odoms.points.emplace_back(pose_.translation().x(), pose_.translation().y(), pose_.translation().z());
+      m_corrected_path.poses.push_back(gtsam_pose_to_pose_stamped(pose_, m_map_frame));
+    }
+    // correct pcd
+    m_corrected_map.clear();
+    for (int i = 0; i < m_corrected_esti.size(); ++i)
+    {
+      pcl::PointCloud<pcl::PointXYZI> tmp_pcd_;
+      pcl::transformPointCloud(m_keyframes[i].pcd, tmp_pcd_, (m_keyframes[i].pose_eig.inverse()*gtsam_pose_to_pose_eig(m_corrected_esti.at<gtsam::Pose3>(i))).cast<float>());
+      m_corrected_map += tmp_pcd_;
+    }
+    // update vis of loop constraints
+    if (!m_loop_idx_pairs.empty()) m_loop_detection_pub.publish(get_loop_markers());
+    m_loop_added_flag = false;
+  }
+  // stack pcd in corrected pose frame
+  pcl::PointCloud<pcl::PointXYZI> tmp_pcd_;
+  pcl::transformPointCloud(m_keyframes.back().pcd, tmp_pcd_, (m_keyframes.back().pose_eig.inverse()*m_last_corrected_pose).cast<float>());
+  m_corrected_map += tmp_pcd_;
+  m_corrected_current_pcd_pub.publish(pcl_to_pcl_ros(tmp_pcd_, m_map_frame)); // pub current scan in corrected pose frame
+  // voxlize_pcd(m_corrected_map);
   m_odom_pub.publish(pcl_to_pcl_ros(m_odoms, m_map_frame));
   m_path_pub.publish(m_odom_path);
   m_corrected_odom_pub.publish(pcl_to_pcl_ros(m_corrected_odoms, m_map_frame));

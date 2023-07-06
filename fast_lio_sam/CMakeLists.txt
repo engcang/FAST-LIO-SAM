@@ -49,12 +49,12 @@ include_directories(
 ## Build ##
 ###########
 ### main
-add_library(${PROJECT_NAME}_object src/objects.cpp)
-target_link_libraries(${PROJECT_NAME}_object ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
+add_library(${PROJECT_NAME}_constructor src/constructor.cpp)
+target_link_libraries(${PROJECT_NAME}_constructor ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
 add_library(${PROJECT_NAME}_methods src/methods.cpp)
 target_link_libraries(${PROJECT_NAME}_methods ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
 add_library(${PROJECT_NAME}_callbacks src/callbacks.cpp)
 target_link_libraries(${PROJECT_NAME}_callbacks ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
 
 add_executable(${PROJECT_NAME}_node src/main.cpp)
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam ${PROJECT_NAME}_object ${PROJECT_NAME}_callbacks ${PROJECT_NAME}_methods)
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam ${PROJECT_NAME}_constructor ${PROJECT_NAME}_callbacks ${PROJECT_NAME}_methods)

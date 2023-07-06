@@ -99,7 +99,7 @@ class FAST_LIO_SAM_CLASS
     ros::Publisher m_corrected_odom_pub, m_corrected_path_pub, m_odom_pub, m_path_pub;
     ros::Publisher m_corrected_current_pcd_pub, m_corrected_pcd_map_pub, m_loop_detection_pub;
     ros::Publisher m_realtime_pose_pub;
-    ros::Timer m_pgo_timer;
+    ros::Timer m_pgo_timer, m_vis_timer;
     // odom, pcd sync subscriber
     shared_ptr<message_filters::Synchronizer<odom_pcd_sync_pol>> m_sub_odom_pcd_sync = nullptr;
     shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> m_sub_odom = nullptr;
@@ -111,6 +111,7 @@ class FAST_LIO_SAM_CLASS
   private:
     //methods
     void update_vis_vars(const pose_pcd &pose_pcd_in);
+    void voxlize_pcd(pcl::PointCloud<pcl::PointXYZI> &pcd_in);
     bool check_if_keyframe(const pose_pcd &pose_pcd_in);
     int get_closest_keyframe_idx(const vector<pose_pcd> &keyframes);
     void gicp_key_to_subkeys(const int &closest_idx);
@@ -118,6 +119,7 @@ class FAST_LIO_SAM_CLASS
     //cb
     void odom_pcd_cb(const nav_msgs::OdometryConstPtr &odom_msg, const sensor_msgs::PointCloud2ConstPtr &pcd_msg);
     void pgo_timer_func(const ros::TimerEvent& event);
+    void vis_timer_func(const ros::TimerEvent& event);
 };
 
 
