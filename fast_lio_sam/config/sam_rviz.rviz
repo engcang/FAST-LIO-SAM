@@ -6,7 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /mapping1
-        - /mapping1/currPoints1/Autocompute Value Bounds1
+        - /mapping1/curr_pcd1/Autocompute Value Bounds1
       Splitter Ratio: 0.6432291865348816
     Tree Height: 865
   - Class: rviz/Selection
@@ -27,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: surround
+    SyncSource: curr_pcd
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -55,7 +55,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/Axes
       Enabled: true
-      Length: 0.699999988079071
+      Length: 2
       Name: Axes
       Radius: 0.10000000149011612
       Reference Frame: <Fixed Frame>
@@ -78,7 +78,7 @@ Visualization Manager:
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 238; 238; 236
-          Name: surround
+          Name: mapped_pcd
           Position Transformer: XYZ
           Queue Size: 1
           Selectable: false
@@ -106,7 +106,7 @@ Visualization Manager:
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Min Color: 0; 0; 0
-          Name: currPoints
+          Name: curr_pcd
           Position Transformer: XYZ
           Queue Size: 100000
           Selectable: true
@@ -121,8 +121,8 @@ Visualization Manager:
       Enabled: true
       Name: mapping
     - Alpha: 1
-      Axes Length: 1.2000000476837158
-      Axes Radius: 0.10000000149011612
+      Axes Length: 3
+      Axes Radius: 0.5
       Class: rviz/Pose
       Color: 255; 25; 0
       Enabled: true
@@ -202,7 +202,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.5
+      Size (m): 1
       Style: Spheres
       Topic: /ori_odom
       Unreliable: false
@@ -230,7 +230,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.5
+      Size (m): 1
       Style: Spheres
       Topic: /corrected_odom
       Unreliable: false
@@ -273,16 +273,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 232.00962829589844
+      Distance: 216.41848754882812
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -28.859516143798828
-        Y: -77.12323760986328
-        Z: 0.07755077630281448
+        X: -20.171981811523438
+        Y: -63.733360290527344
+        Z: 0.06377366930246353
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -291,7 +291,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.6103975772857666
+      Yaw: 1.595393419265747
     Saved: ~
 Window Geometry:
   Displays:

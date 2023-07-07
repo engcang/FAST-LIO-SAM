@@ -9,6 +9,7 @@
 #include <cmath>
 #include <chrono> //time check
 #include <vector>
+#include <deque>
 #include <mutex>
 #include <string>
 #include <utility> // pair, make_pair
@@ -59,8 +60,9 @@ struct pose_pcd
   gtsam::Pose3 pose_gtsam;
   Eigen::Matrix4d pose_eig = Eigen::Matrix4d::Identity();
   double timestamp;
+  int idx;
   pose_pcd(){};
-  pose_pcd(const nav_msgs::Odometry &odom_in, const sensor_msgs::PointCloud2 &pcd_in);
+  pose_pcd(const nav_msgs::Odometry &odom_in, const sensor_msgs::PointCloud2 &pcd_in, const int &idx_in);
 };
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 class FAST_LIO_SAM_CLASS
@@ -69,10 +71,13 @@ class FAST_LIO_SAM_CLASS
     ///// basic params
     string m_map_frame;
     ///// shared data - odom and pcd
-    mutex m_pose_pcd_mutex, m_odom_delta_mutex;
+    mutex m_realtime_pose_mutex, m_keyframes_mutex;
+    mutex m_graph_mutex, m_vis_mutex;
     bool m_init=false;
-    pose_pcd m_current_keyframe;
+    int m_current_keyframe_idx = 0;
+    pose_pcd m_current_frame;
     vector<pose_pcd> m_keyframes;
+    deque<pose_pcd> m_not_processed_keyframes;
     Eigen::Matrix4d m_last_corrected_pose = Eigen::Matrix4d::Identity();
     Eigen::Matrix4d m_odom_delta = Eigen::Matrix4d::Identity();
     ///// graph and values
@@ -82,7 +87,7 @@ class FAST_LIO_SAM_CLASS
     gtsam::Values m_corrected_esti;
     double m_keyframe_thr;
     ///// loop
-    pcl::VoxelGrid<pcl::PointXYZI> m_voxelgrid;
+    pcl::VoxelGrid<pcl::PointXYZI> m_voxelgrid, m_voxelgrid_vis;
     pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZI, pcl::PointXYZI> m_gicp;
     double m_gicp_score_thr;
     double m_loop_det_radi;
@@ -111,11 +116,11 @@ class FAST_LIO_SAM_CLASS
   private:
     //methods
     void update_vis_vars(const pose_pcd &pose_pcd_in);
-    void voxlize_pcd(pcl::PointCloud<pcl::PointXYZI> &pcd_in);
-    bool check_if_keyframe(const pose_pcd &pose_pcd_in);
-    int get_closest_keyframe_idx(const vector<pose_pcd> &keyframes);
-    void gicp_key_to_subkeys(const int &closest_idx);
-    visualization_msgs::Marker get_loop_markers();
+    void voxelize_pcd(pcl::VoxelGrid<pcl::PointXYZI> &voxelgrid, pcl::PointCloud<pcl::PointXYZI> &pcd_in);
+    bool check_if_keyframe(const pose_pcd &pose_pcd_in, const pose_pcd &latest_pose_pcd);
+    int get_closest_keyframe_idx(const pose_pcd &front_keyframe, const vector<pose_pcd> &keyframes);
+    void gicp_key_to_subkeys(const pose_pcd &front_keyframe, const int &closest_idx, const vector<pose_pcd> &keyframes);
+    visualization_msgs::Marker get_loop_markers(const gtsam::Values &corrected_esti_in);
     //cb
     void odom_pcd_cb(const nav_msgs::OdometryConstPtr &odom_msg, const sensor_msgs::PointCloud2ConstPtr &pcd_msg);
     void pgo_timer_func(const ros::TimerEvent& event);

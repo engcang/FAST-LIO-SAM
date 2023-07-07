@@ -3,59 +3,24 @@
 
 void FAST_LIO_SAM_CLASS::update_vis_vars(const pose_pcd &pose_pcd_in)
 {
-  m_odoms.points.emplace_back(pose_pcd_in.pose_eig(0, 3), pose_pcd_in.pose_eig(1, 3), pose_pcd_in.pose_eig(2, 3));
-  m_corrected_odoms.points.emplace_back(pose_pcd_in.pose_eig(0, 3), pose_pcd_in.pose_eig(1, 3), pose_pcd_in.pose_eig(2, 3));
   geometry_msgs::PoseStamped pose_path_ = gtsam_pose_to_pose_stamped(pose_pcd_in.pose_gtsam, m_map_frame);
+  m_odoms.points.emplace_back(pose_pcd_in.pose_eig(0, 3), pose_pcd_in.pose_eig(1, 3), pose_pcd_in.pose_eig(2, 3));
   m_odom_path.poses.push_back(pose_path_);
+  m_corrected_odoms.points.emplace_back(pose_pcd_in.pose_eig(0, 3), pose_pcd_in.pose_eig(1, 3), pose_pcd_in.pose_eig(2, 3));
   m_corrected_path.poses.push_back(pose_path_);
   return;
 }
 
-void FAST_LIO_SAM_CLASS::voxlize_pcd(pcl::PointCloud<pcl::PointXYZI> &pcd_in)
-{
-  pcl::PointCloud<pcl::PointXYZI>::Ptr before_(new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::PointCloud<pcl::PointXYZI>::Ptr after_(new pcl::PointCloud<pcl::PointXYZI>);
-  *before_ = pcd_in;
-  m_voxelgrid.setInputCloud(before_);
-  m_voxelgrid.filter(*after_);
-  pcd_in = *after_;
-  return;
-}
-
-bool FAST_LIO_SAM_CLASS::check_if_keyframe(const pose_pcd &pose_pcd_in)
-{
-  return m_keyframe_thr < (m_keyframes.back().pose_eig.block<3, 1>(0, 3) - pose_pcd_in.pose_eig.block<3, 1>(0, 3)).norm();
-}
-
-int FAST_LIO_SAM_CLASS::get_closest_keyframe_idx(const vector<pose_pcd> &keyframes)
-{
-  double shortest_distance_ = m_loop_det_radi*3.0;
-  int closest_idx_ = -1;
-  for (int idx = 0; idx < keyframes.size()-1; ++idx)
-  {
-    //check if potential loop: close enough in distance, far enough in time
-    double tmp_dist_ = (keyframes[idx].pose_eig.block<3, 1>(0, 3) - keyframes.back().pose_eig.block<3, 1>(0, 3)).norm();
-    if (m_loop_det_radi > tmp_dist_ && m_loop_det_tdiff_thr < (keyframes.back().timestamp - keyframes[idx].timestamp))
-    {
-      if (tmp_dist_ < shortest_distance_)
-      {
-        shortest_distance_ = tmp_dist_;
-        closest_idx_ = idx;
-      }
-    }
-  }
-  return closest_idx_;
-}
-
-visualization_msgs::Marker FAST_LIO_SAM_CLASS::get_loop_markers()
+visualization_msgs::Marker FAST_LIO_SAM_CLASS::get_loop_markers(const gtsam::Values &corrected_esti_in)
 {
   visualization_msgs::Marker edges_; edges_.type = 5u;
   edges_.scale.x = 0.12f; edges_.header.frame_id = m_map_frame; edges_.pose.orientation.w = 1.0f;
   edges_.color.r = 1.0f; edges_.color.g = 1.0f; edges_.color.b = 1.0f; edges_.color.a = 1.0f;
   for (int i = 0; i < m_loop_idx_pairs.size(); ++i)
   {
-    gtsam::Pose3 pose_ = m_corrected_esti.at<gtsam::Pose3>(m_loop_idx_pairs[i].first);
-    gtsam::Pose3 pose2_ = m_corrected_esti.at<gtsam::Pose3>(m_loop_idx_pairs[i].second);
+    if (m_loop_idx_pairs[i].first >= corrected_esti_in.size() || m_loop_idx_pairs[i].second >= corrected_esti_in.size()) continue;
+    gtsam::Pose3 pose_ = corrected_esti_in.at<gtsam::Pose3>(m_loop_idx_pairs[i].first);
+    gtsam::Pose3 pose2_ = corrected_esti_in.at<gtsam::Pose3>(m_loop_idx_pairs[i].second);
     geometry_msgs::Point p_, p2_;
     p_.x = pose_.translation().x(); p_.y = pose_.translation().y(); p_.z = pose_.translation().z();
     p2_.x = pose2_.translation().x(); p2_.y = pose2_.translation().y(); p2_.z = pose2_.translation().z();
@@ -65,27 +30,63 @@ visualization_msgs::Marker FAST_LIO_SAM_CLASS::get_loop_markers()
   return edges_;
 }
 
-void FAST_LIO_SAM_CLASS::gicp_key_to_subkeys(const int &closest_idx)
+void FAST_LIO_SAM_CLASS::voxelize_pcd(pcl::VoxelGrid<pcl::PointXYZI> &voxelgrid, pcl::PointCloud<pcl::PointXYZI> &pcd_in)
 {
-	// merge subkeyframes before GICP
-  pcl::PointCloud<pcl::PointXYZI>::Ptr dst_raw_(new pcl::PointCloud<pcl::PointXYZI>);
-  for (int i = closest_idx-m_sub_key_num; i < closest_idx+m_sub_key_num+1; ++i)
+  pcl::PointCloud<pcl::PointXYZI>::Ptr before_(new pcl::PointCloud<pcl::PointXYZI>);
+  *before_ = pcd_in;
+  voxelgrid.setInputCloud(before_);
+  voxelgrid.filter(pcd_in);
+  return;
+}
+
+bool FAST_LIO_SAM_CLASS::check_if_keyframe(const pose_pcd &pose_pcd_in, const pose_pcd &latest_pose_pcd)
+{
+  return m_keyframe_thr < (latest_pose_pcd.pose_eig.block<3, 1>(0, 3) - pose_pcd_in.pose_eig.block<3, 1>(0, 3)).norm();
+}
+
+int FAST_LIO_SAM_CLASS::get_closest_keyframe_idx(const pose_pcd &front_keyframe, const vector<pose_pcd> &keyframes)
+{
+  double shortest_distance_ = m_loop_det_radi*3.0;
+  int closest_idx_ = -1;
+  for (int idx = 0; idx < keyframes.size()-1; ++idx)
   {
-    if (i>=0 && i < m_keyframes.size()-1) //if exists
+    //check if potential loop: close enough in distance, far enough in time
+    double tmp_dist_ = (keyframes[idx].pose_eig.block<3, 1>(0, 3) - front_keyframe.pose_eig.block<3, 1>(0, 3)).norm();
+    if (m_loop_det_radi > tmp_dist_ && m_loop_det_tdiff_thr < (front_keyframe.timestamp - keyframes[idx].timestamp))
     {
-      *dst_raw_ = *dst_raw_ + m_keyframes[i].pcd;
+      if (tmp_dist_ < shortest_distance_)
+      {
+        shortest_distance_ = tmp_dist_;
+        closest_idx_ = keyframes[idx].idx;
+      }
     }
   }
-  // then match with GICP
-  pcl::PointCloud<pcl::PointXYZI>::Ptr src_raw_(new pcl::PointCloud<pcl::PointXYZI>);
+  return closest_idx_;
+}
+
+void FAST_LIO_SAM_CLASS::gicp_key_to_subkeys(const pose_pcd &front_keyframe, const int &closest_idx, const vector<pose_pcd> &keyframes)
+{
+	// merge subkeyframes before GICP
+  pcl::PointCloud<pcl::PointXYZI> dst_raw_, src_raw_;
+  src_raw_ = front_keyframe.pcd;
+  for (int i = closest_idx-m_sub_key_num; i < closest_idx+m_sub_key_num+1; ++i)
+  {
+    if (i>=0 && i < keyframes.size()-1) //if exists
+    {
+      dst_raw_ += keyframes[i].pcd;
+    }
+  }
+  
+  // voxlize pcd
   pcl::PointCloud<pcl::PointXYZI>::Ptr src_(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr dst_(new pcl::PointCloud<pcl::PointXYZI>);
+  voxelize_pcd(m_voxelgrid, dst_raw_);
+  voxelize_pcd(m_voxelgrid, src_raw_);
+  *dst_ = dst_raw_;
+  *src_ = src_raw_;
+
+  // then match with GICP
   pcl::PointCloud<pcl::PointXYZI> dummy_;
-  *src_raw_ = m_keyframes.back().pcd;
-  m_voxelgrid.setInputCloud(src_raw_);
-  m_voxelgrid.filter(*src_);
-  m_voxelgrid.setInputCloud(dst_raw_);
-  m_voxelgrid.filter(*dst_);
   m_gicp.setInputSource(src_);
   m_gicp.setInputTarget(dst_);
   m_gicp.align(dummy_);	

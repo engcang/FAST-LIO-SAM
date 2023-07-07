@@ -5,11 +5,12 @@
 
 # FAST-LIO-SAM
 + This repository is a SLAM implementation combining [FAST-LIO2](https://github.com/hku-mars/FAST_LIO) with pose graph optimization and loop closing based on [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM) paper
+    + To learn GTSAM myself!
     + Loop-detection is based on radius search and GICP is used to calc matching
-+ To learn GTSAM myself!
 + Note: similar repositories already exist
     + [FAST_LIO_LC](https://github.com/yanliang-wang/FAST_LIO_LC): FAST-LIO2 + SC-A-LOAM based SLAM
     + [FAST_LIO_SLAM](https://github.com/gisbi-kim/FAST_LIO_SLAM): FAST-LIO2 + ScanContext based SLAM
++ Note: main code (PGO) is modularized and hence can be combined with any other LIO / LO
 
 <br>
 
@@ -40,3 +41,16 @@
     roslaunch fast_lio_sam run.launch lidar:=velodyne
     roslaunch fast_lio_sam run.launch lidar:=livox
     ```
+
+<br>
+
+### Structure
++ odom_pcd_cb
+    + pub realtime pose in corrected frame
+    + keyframe detection -> if keyframe, add to pose graph + save to keyframe queue
++ pgo_timer_func
+    + process saved keyframes in queue
+        + detect loop -> if loop, add to pose graph
+    + pose graph optimization with iSAM2
++ vis_timer_func
+    + visualize all

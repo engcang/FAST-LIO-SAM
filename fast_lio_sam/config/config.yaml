@@ -1,4 +1,4 @@
-map_frame: "map"                            # publish frame
+map_frame: "camera_init"                            # publish frame
 
 loop_detection_radius: 25.0                 # unit [meter] within this radius, check if loop or not
 loop_detection_timediff_threshold: 30.0     # unit [sec] check if two keyframes are loop if times are farther than this
@@ -6,5 +6,5 @@ keyframe_threshold: 1.0                     # unit [meter] every this distance, 
 gicp_score_threshold: 1.0                   # lower is more accurate, for loop detection
 subkeyframes_number: 10                     # how many subkeyframes are merged to gicp with current keyframe (closest-this ~ closest+this, if exists)
 
-pgo_update_hz: 1.0                          # Loop detection and pose graph optimizatino Hz
-vis_hz: 0.5                                 # visualize Hz
+pgo_update_hz: 0.5                          # Loop detection and pose graph optimizatino Hz
+vis_hz: 0.2                                 # visualize Hz

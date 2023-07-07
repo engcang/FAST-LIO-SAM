@@ -1,7 +1,7 @@
 #include "main.h"
 
 
-pose_pcd::pose_pcd(const nav_msgs::Odometry &odom_in, const sensor_msgs::PointCloud2 &pcd_in)
+pose_pcd::pose_pcd(const nav_msgs::Odometry &odom_in, const sensor_msgs::PointCloud2 &pcd_in, const int &idx_in)
 {
   timestamp = odom_in.header.stamp.toSec();
   pcl::fromROSMsg(pcd_in, pcd);
@@ -15,6 +15,7 @@ pose_pcd::pose_pcd(const nav_msgs::Odometry &odom_in, const sensor_msgs::PointCl
   pose_eig(2, 3) = odom_in.pose.pose.position.z;
   pose_gtsam = gtsam::Pose3(gtsam::Rot3::Quaternion(odom_in.pose.pose.orientation.w, odom_in.pose.pose.orientation.x, odom_in.pose.pose.orientation.y, odom_in.pose.pose.orientation.z), 
                             gtsam::Point3(odom_in.pose.pose.position.x, odom_in.pose.pose.position.y, odom_in.pose.pose.position.z));
+  idx = idx_in;
 }
 
 FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(n_private)
@@ -28,9 +29,9 @@ FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(
   m_nh.param<double>("/loop_detection_radius", m_loop_det_radi, 15.0);
   m_nh.param<double>("/loop_detection_timediff_threshold", m_loop_det_tdiff_thr, 10.0);
   m_nh.param<double>("/gicp_score_threshold", m_gicp_score_thr, 10.0);
-  m_nh.param<int>("/subkeyframes_number", m_sub_key_num, 3);
-  m_nh.param<double>("/pgo_update_hz", pgo_update_hz_, 3.0);
-  m_nh.param<double>("/vis_hz", vis_hz_, 3.0);
+  m_nh.param<int>("/subkeyframes_number", m_sub_key_num, 5);
+  m_nh.param<double>("/pgo_update_hz", pgo_update_hz_, 1.0);
+  m_nh.param<double>("/vis_hz", vis_hz_, 0.5);
 
   ////// GTSAM init
   gtsam::ISAM2Params isam_params_;
@@ -39,6 +40,7 @@ FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(
   m_isam_handler = std::make_shared<gtsam::ISAM2>(isam_params_);
   ////// loop init
   m_voxelgrid.setLeafSize(0.3, 0.3, 0.3);
+  m_voxelgrid_vis.setLeafSize(0.3, 0.3, 0.3);
   m_gicp.setTransformationEpsilon(0.1);
   m_gicp.setMaxCorrespondenceDistance(m_loop_det_radi*2.0);
   m_gicp.setMaximumIterations(100);
