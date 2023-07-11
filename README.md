@@ -7,16 +7,34 @@
     + [FAST_LIO_SAM](https://github.com/kahowang/FAST_LIO_SAM): FAST-LIO2 + LIO-SAM
 + Note2: main code (PGO) is modularized and hence can be combined with any other LIO / LO
     + This repo is to learn GTSAM myself!
-    <!-- + and as GTSAM tutorial for beginners - [GTSAM 튜토리얼 한글 포스팅]() -->
+    + and as GTSAM tutorial for beginners - [GTSAM 튜토리얼 한글 포스팅](https://engcang.github.io/2023/07/15/gtsam_tutorial.html)
+
+<p align="center">
+  <img src="imgs/fast1.png" height="400"/>
+  <img src="imgs/sam1.png" height="400"/>
+  <br>
+  <em>KITTI seq 05 top view - (left): FAST-LIO2 (right): FAST-LIO-SAM</em>
+</p>
+<p align="center">
+  <img src="imgs/fast2.png" height="100"/>
+  <img src="imgs/sam2.png" height="100"/>
+  <br>
+  <em>KITTI seq 05 side view - (left): FAST-LIO2 (right): FAST-LIO-SAM</em>
+</p>
+<p align="center">
+  <img src="imgs/traj.png" height="500"/>
+  <br>
+  <em>KITTI seq 05 trajectories - (blue): FAST-LIO2 (green): FAST-LIO-SAM</em>
+</p>
 
 <br>
 
-<!-- 
+ 
 #### Note
 + For better loop-detection and transform calculation, [FAST-LIO-SAM-QN](https://github.com/engcang/FAST-LIO-SAM-QN) is also coded and opened.
     + It adopts [Quatro](https://github.com/url-kaist/Quatro) - fast, accurate and robust global registration which provides great initial guess of transform
     + and [Nano-GICP](https://github.com/vectr-ucla/direct_lidar_odometry) - fast and accurate ICP combining [FastGICP](https://github.com/SMRT-AIST/fast_gicp) + [NanoFLANN](https://github.com/jlblancoc/nanoflann)
--->
+
 
 <br>
 
