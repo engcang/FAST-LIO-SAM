@@ -10,19 +10,19 @@
     + and as GTSAM tutorial for beginners - [GTSAM 튜토리얼 한글 포스팅](https://engcang.github.io/2023/07/15/gtsam_tutorial.html)
 
 <p align="center">
-  <img src="imgs/fast1.png" height="400"/>
-  <img src="imgs/sam1.png" height="400"/>
+  <img src="imgs/fast1.png" height="300"/>
+  <img src="imgs/sam1.png" height="300"/>
   <br>
   <em>KITTI seq 05 top view - (left): FAST-LIO2 (right): FAST-LIO-SAM</em>
 </p>
 <p align="center">
-  <img src="imgs/fast2.png" height="100"/>
-  <img src="imgs/sam2.png" height="100"/>
+  <img src="imgs/fast2.png" width="600"/>
+  <img src="imgs/sam2.png" width="600"/>
   <br>
-  <em>KITTI seq 05 side view - (left): FAST-LIO2 (right): FAST-LIO-SAM</em>
+  <em>KITTI seq 05 side view - (top): FAST-LIO2 (bottom): FAST-LIO-SAM</em>
 </p>
 <p align="center">
-  <img src="imgs/traj.png" height="500"/>
+  <img src="imgs/traj.png" width="600"/>
   <br>
   <em>KITTI seq 05 trajectories - (blue): FAST-LIO2 (green): FAST-LIO-SAM</em>
 </p>
