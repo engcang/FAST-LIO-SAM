@@ -4,7 +4,7 @@
 + Note: similar repositories already exist
     + [FAST_LIO_LC](https://github.com/yanliang-wang/FAST_LIO_LC): FAST-LIO2 + SC-A-LOAM based SLAM
     + [FAST_LIO_SLAM](https://github.com/gisbi-kim/FAST_LIO_SLAM): FAST-LIO2 + ScanContext based SLAM
-    + [FAST_LIO_SAM] (https://github.com/kahowang/FAST_LIO_SAM): FAST-LIO2 + LIO-SAM
+    + [FAST_LIO_SAM](https://github.com/kahowang/FAST_LIO_SAM): FAST-LIO2 + LIO-SAM
 + Note2: main code (PGO) is modularized and hence can be combined with any other LIO / LO
     + This repo is to learn GTSAM myself!
     <!-- + and as GTSAM tutorial for beginners - [GTSAM 튜토리얼 한글 포스팅]() -->
@@ -48,7 +48,7 @@
     catkin build -DCMAKE_BUILD_TYPE=Release
     . devel/setup.bash
     ```
-+ Then run
++ Then run (change config files in third_party/`FAST_LIO`)
     ```shell
     roslaunch fast_lio_sam run.launch lidar:=ouster
     roslaunch fast_lio_sam run.launch lidar:=velodyne
