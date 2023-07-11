@@ -3,11 +3,10 @@
 
 void FAST_LIO_SAM_CLASS::update_vis_vars(const pose_pcd &pose_pcd_in)
 {
-  geometry_msgs::PoseStamped pose_path_ = gtsam_pose_to_pose_stamped(pose_pcd_in.pose_gtsam, m_map_frame);
   m_odoms.points.emplace_back(pose_pcd_in.pose_eig(0, 3), pose_pcd_in.pose_eig(1, 3), pose_pcd_in.pose_eig(2, 3));
-  m_odom_path.poses.push_back(pose_path_);
-  m_corrected_odoms.points.emplace_back(pose_pcd_in.pose_eig(0, 3), pose_pcd_in.pose_eig(1, 3), pose_pcd_in.pose_eig(2, 3));
-  m_corrected_path.poses.push_back(pose_path_);
+  m_corrected_odoms.points.emplace_back(pose_pcd_in.pose_corrected_eig(0, 3), pose_pcd_in.pose_corrected_eig(1, 3), pose_pcd_in.pose_corrected_eig(2, 3));
+  m_odom_path.poses.push_back(pose_eig_to_pose_stamped(pose_pcd_in.pose_eig, m_map_frame));
+  m_corrected_path.poses.push_back(pose_eig_to_pose_stamped(pose_pcd_in.pose_corrected_eig, m_map_frame));
   return;
 }
 
@@ -41,7 +40,7 @@ void FAST_LIO_SAM_CLASS::voxelize_pcd(pcl::VoxelGrid<pcl::PointXYZI> &voxelgrid,
 
 bool FAST_LIO_SAM_CLASS::check_if_keyframe(const pose_pcd &pose_pcd_in, const pose_pcd &latest_pose_pcd)
 {
-  return m_keyframe_thr < (latest_pose_pcd.pose_eig.block<3, 1>(0, 3) - pose_pcd_in.pose_eig.block<3, 1>(0, 3)).norm();
+  return m_keyframe_thr < (latest_pose_pcd.pose_corrected_eig.block<3, 1>(0, 3) - pose_pcd_in.pose_corrected_eig.block<3, 1>(0, 3)).norm();
 }
 
 int FAST_LIO_SAM_CLASS::get_closest_keyframe_idx(const pose_pcd &front_keyframe, const vector<pose_pcd> &keyframes)
@@ -51,7 +50,7 @@ int FAST_LIO_SAM_CLASS::get_closest_keyframe_idx(const pose_pcd &front_keyframe,
   for (int idx = 0; idx < keyframes.size()-1; ++idx)
   {
     //check if potential loop: close enough in distance, far enough in time
-    double tmp_dist_ = (keyframes[idx].pose_eig.block<3, 1>(0, 3) - front_keyframe.pose_eig.block<3, 1>(0, 3)).norm();
+    double tmp_dist_ = (keyframes[idx].pose_corrected_eig.block<3, 1>(0, 3) - front_keyframe.pose_corrected_eig.block<3, 1>(0, 3)).norm();
     if (m_loop_det_radi > tmp_dist_ && m_loop_det_tdiff_thr < (front_keyframe.timestamp - keyframes[idx].timestamp))
     {
       if (tmp_dist_ < shortest_distance_)
@@ -64,16 +63,16 @@ int FAST_LIO_SAM_CLASS::get_closest_keyframe_idx(const pose_pcd &front_keyframe,
   return closest_idx_;
 }
 
-void FAST_LIO_SAM_CLASS::gicp_key_to_subkeys(const pose_pcd &front_keyframe, const int &closest_idx, const vector<pose_pcd> &keyframes)
+void FAST_LIO_SAM_CLASS::icp_key_to_subkeys(const pose_pcd &front_keyframe, const int &closest_idx, const vector<pose_pcd> &keyframes)
 {
-	// merge subkeyframes before GICP
+	// merge subkeyframes before ICP
   pcl::PointCloud<pcl::PointXYZI> dst_raw_, src_raw_;
-  src_raw_ = front_keyframe.pcd;
+  src_raw_ = tf_pcd(front_keyframe.pcd, front_keyframe.pose_corrected_eig);
   for (int i = closest_idx-m_sub_key_num; i < closest_idx+m_sub_key_num+1; ++i)
   {
     if (i>=0 && i < keyframes.size()-1) //if exists
     {
-      dst_raw_ += keyframes[i].pcd;
+      dst_raw_ += tf_pcd(keyframes[i].pcd, keyframes[i].pose_corrected_eig);
     }
   }
   
@@ -85,10 +84,13 @@ void FAST_LIO_SAM_CLASS::gicp_key_to_subkeys(const pose_pcd &front_keyframe, con
   *dst_ = dst_raw_;
   *src_ = src_raw_;
 
-  // then match with GICP
+  // then match with ICP
   pcl::PointCloud<pcl::PointXYZI> dummy_;
-  m_gicp.setInputSource(src_);
-  m_gicp.setInputTarget(dst_);
-  m_gicp.align(dummy_);	
+  m_icp.setInputSource(src_);
+  m_icp.setInputTarget(dst_);
+  m_icp.align(dummy_);
+  m_debug_src_pub.publish(pcl_to_pcl_ros(src_raw_, m_map_frame));
+  m_debug_dst_pub.publish(pcl_to_pcl_ros(dst_raw_, m_map_frame));
+  m_debug_aligned_pub.publish(pcl_to_pcl_ros(dummy_, m_map_frame));
 	return;
 }

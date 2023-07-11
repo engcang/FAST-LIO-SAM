@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 
   signal(SIGINT, signal_handler); // to exit program when ctrl+c
 
-  ros::AsyncSpinner spinner(3); // Use multi threads
+  ros::AsyncSpinner spinner(4); // Use multi threads
   spinner.start();
   ros::waitForShutdown();
 

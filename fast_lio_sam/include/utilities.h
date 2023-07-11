@@ -3,6 +3,7 @@
 
 ///// common headers
 #include <string>
+#include <execution>
 ///// ROS
 #include <ros/ros.h>
 #include <tf/LinearMath/Quaternion.h> // to Quaternion_to_euler
@@ -86,6 +87,24 @@ sensor_msgs::PointCloud2 pcl_to_pcl_ros(pcl::PointCloud<T> cloud, string frame_i
   pcl::toROSMsg(cloud, cloud_ROS);
   cloud_ROS.header.frame_id = frame_id;
   return cloud_ROS;
+}
+
+///// transformation
+template <typename T>
+pcl::PointCloud<T> tf_pcd(const pcl::PointCloud<T> &cloud_in, const Eigen::Matrix4d &pose_tf)
+{
+	if (cloud_in.size() == 0) return cloud_in;
+	pcl::PointCloud<T> pcl_out_ = cloud_in;
+	std::for_each(std::execution::par_unseq, pcl_out_.begin(), pcl_out_.end(), [&](T &pt)
+	{
+		float x_ = pt.x;
+		float y_ = pt.y;
+		float z_ = pt.z;
+		pt.x = pose_tf(0, 0) * x_ + pose_tf(0, 1) * y_ + pose_tf(0, 2) * z_ + pose_tf(0, 3);
+		pt.y = pose_tf(1, 0) * x_ + pose_tf(1, 1) * y_ + pose_tf(1, 2) * z_ + pose_tf(1, 3);
+		pt.z = pose_tf(2, 0) * x_ + pose_tf(2, 1) * y_ + pose_tf(2, 2) * z_ + pose_tf(2, 3);
+	});
+  return pcl_out_;
 }
 
 
