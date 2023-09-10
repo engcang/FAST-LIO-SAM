@@ -33,6 +33,9 @@ FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(
   m_nh.param<int>("/subkeyframes_number", m_sub_key_num, 5);
   m_nh.param<double>("/loop_update_hz", loop_update_hz_, 1.0);
   m_nh.param<double>("/vis_hz", vis_hz_, 0.5);
+  /* results */
+  m_nh.param<bool>("/result/save_map_bag", m_save_map_bag, false);
+  m_nh.param<bool>("/result/save_map_pcd", m_save_map_pcd, false);
 
   ////// GTSAM init
   gtsam::ISAM2Params isam_params_;
@@ -51,6 +54,7 @@ FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(
   ////// ROS things
   m_odom_path.header.frame_id = m_map_frame;
   m_corrected_path.header.frame_id = m_map_frame;
+  m_package_path = ros::package::getPath("fast_lio_sam");
   // publishers
   m_odom_pub = m_nh.advertise<sensor_msgs::PointCloud2>("/ori_odom", 10, true);
   m_path_pub = m_nh.advertise<nav_msgs::Path>("/ori_path", 10, true);
@@ -73,4 +77,39 @@ FAST_LIO_SAM_CLASS::FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private) : m_nh(
   m_vis_timer = m_nh.createTimer(ros::Duration(1/vis_hz_), &FAST_LIO_SAM_CLASS::vis_timer_func, this);
   
   ROS_WARN("Main class, starting node...");
+}
+
+FAST_LIO_SAM_CLASS::~FAST_LIO_SAM_CLASS()
+{
+  // save map
+  if (m_save_map_pcd)
+  {
+    pcl::PointCloud<pcl::PointXYZI> corrected_map_;
+    {
+      lock_guard<mutex> lock(m_keyframes_mutex);
+      for (int i = 0; i < m_keyframes.size(); ++i)
+      {
+        corrected_map_ += tf_pcd(m_keyframes[i].pcd, m_keyframes[i].pose_corrected_eig);
+      }
+    }
+    pcl::io::savePCDFileASCII<pcl::PointXYZI> (m_package_path+"/result.pcd", corrected_map_);
+    cout << "\033[32;1mResult saved in .pcd format!!!\033[0m" << endl;
+  }
+  if (m_save_map_bag)
+  {
+    rosbag::Bag bag_;
+    bag_.open(m_package_path+"/result.bag", rosbag::bagmode::Write);
+    {
+      lock_guard<mutex> lock(m_keyframes_mutex);
+      for (int i = 0; i < m_keyframes.size(); ++i)
+      {
+        ros::Time time_;
+        time_.fromSec(m_keyframes[i].timestamp);
+        bag_.write("/keyframe_pcd", time_, pcl_to_pcl_ros(m_keyframes[i].pcd, m_map_frame));
+        bag_.write("/keyframe_pose", time_, pose_eig_to_pose_stamped(m_keyframes[i].pose_corrected_eig));
+      }
+    }
+    bag_.close();
+    cout << "\033[36;1mResult saved in .bag format!!!\033[0m" << endl;
+  }
 }

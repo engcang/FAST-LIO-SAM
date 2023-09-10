@@ -14,6 +14,8 @@
 #include <utility> // pair, make_pair
 ///// ROS
 #include <ros/ros.h>
+#include <ros/package.h> // get package_path
+#include <rosbag/bag.h> // save map
 #include <tf/LinearMath/Quaternion.h> // to Quaternion_to_euler
 #include <tf/LinearMath/Matrix3x3.h> // to Quaternion_to_euler
 #include <tf/transform_datatypes.h> // createQuaternionFromRPY
@@ -34,6 +36,7 @@
 #include <pcl_conversions/pcl_conversions.h> //ros<->pcl
 #include <pcl/filters/voxel_grid.h> //voxelgrid
 #include <pcl/registration/icp.h> //icp
+#include <pcl/io/pcd_io.h> // save map
 ///// Eigen
 #include <Eigen/Eigen> // whole Eigen library: Sparse(Linearalgebra) + Dense(Core+Geometry+LU+Cholesky+SVD+QR+Eigenvalues)
 ///// GTSAM
@@ -70,6 +73,7 @@ class FAST_LIO_SAM_CLASS
   private:
     ///// basic params
     string m_map_frame;
+    string m_package_path;
     ///// shared data - odom and pcd
     mutex m_realtime_pose_mutex, m_keyframes_mutex;
     mutex m_graph_mutex, m_vis_mutex;
@@ -100,6 +104,8 @@ class FAST_LIO_SAM_CLASS
     pcl::PointCloud<pcl::PointXYZ> m_odoms, m_corrected_odoms;
     nav_msgs::Path m_odom_path, m_corrected_path;
     bool m_global_map_vis_switch = true;
+    ///// results
+    bool m_save_map_bag = false, m_save_map_pcd = false;
     ///// ros
     ros::NodeHandle m_nh;
     ros::Publisher m_corrected_odom_pub, m_corrected_path_pub, m_odom_pub, m_path_pub;
@@ -115,6 +121,7 @@ class FAST_LIO_SAM_CLASS
     ///// functions
   public:
     FAST_LIO_SAM_CLASS(const ros::NodeHandle& n_private);
+    ~FAST_LIO_SAM_CLASS();
   private:
     //methods
     void update_vis_vars(const pose_pcd &pose_pcd_in);

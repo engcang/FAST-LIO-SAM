@@ -51,18 +51,12 @@
     ```
 
 ## How to build and use
-+ Get the code, build `tbb` first, and then build the main code
-    + `tbb` is only used for faster `pcl::transformPointCloud`, you can just remove it by replacing `tf_pcd` with `pcl::transformPointCloud`
++ Get the code and build
     ```shell
     cd ~/your_workspace/src
     git clone https://github.com/engcang/FAST-LIO-SAM --recursive
 
-    cd FAST-LIO-SAM/third_party/tbb-aarch64
-    ./scripts/bootstrap-aarch64-linux.sh
-    cd build-aarch64
-    make -j16 && make install
-
-    cd ~/your_workspace
+    cd ..
     catkin build -DCMAKE_BUILD_TYPE=Release
     . devel/setup.bash
     ```

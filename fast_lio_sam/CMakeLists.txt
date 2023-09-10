@@ -9,6 +9,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -Wextra ${CMAKE_CXX_FLAGS}")
 ### get packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  roslib
+  rosbag
   std_msgs
   geometry_msgs
   nav_msgs
@@ -43,22 +45,17 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
   ${GTSAM_INCLUDE_DIR}
 )
-#### for tbb
-set(TBB2020_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../third_party/tbb-aarch64/dist/include") #CMAKE_CURRENT_SOURCE_DIR should be used when in add_subdirectory
-set(TBB2020_LIBRARY_DIR "${CMAKE_SOURCE_DIR}/../third_party/tbb-aarch64/dist/lib")
-include_directories(${TBB2020_INCLUDE_DIR})
-link_directories(${TBB2020_LIBRARY_DIR})
 
 ###########
 ## Build ##
 ###########
 ### main
 add_library(${PROJECT_NAME}_constructor src/constructor.cpp)
-target_link_libraries(${PROJECT_NAME}_constructor ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam tbb)
+target_link_libraries(${PROJECT_NAME}_constructor ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
 add_library(${PROJECT_NAME}_methods src/methods.cpp)
-target_link_libraries(${PROJECT_NAME}_methods ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam tbb)
+target_link_libraries(${PROJECT_NAME}_methods ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
 add_library(${PROJECT_NAME}_callbacks src/callbacks.cpp)
-target_link_libraries(${PROJECT_NAME}_callbacks ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam tbb)
+target_link_libraries(${PROJECT_NAME}_callbacks ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
 
 add_executable(${PROJECT_NAME}_node src/main.cpp)
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam tbb ${PROJECT_NAME}_constructor ${PROJECT_NAME}_callbacks ${PROJECT_NAME}_methods)
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam ${PROJECT_NAME}_constructor ${PROJECT_NAME}_callbacks ${PROJECT_NAME}_methods)
