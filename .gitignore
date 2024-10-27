@@ -1,0 +1,5 @@
+.vscode/
+*.bag
+fast_lio_sam/*.bag
+/fast_lio_sam/result.pcd
+/fast_lio_sam/sequence*/

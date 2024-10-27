@@ -1,9 +1,10 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.10)
 project(fast_lio_sam)
 
 ### set compiler
 set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-std=c++17 -pthread -fexceptions -g -ggdb") #c++17, for parallel programming 
+set(CMAKE_CXX_FLAGS "-std=c++17 -pthread -fexceptions -g -ggdb") #c++17, for parallel programming and for Eigen (see https://eigen.tuxfamily.org/dox/group__TopicStructHavingEigenMembers.html)
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -Wextra ${CMAKE_CXX_FLAGS}")
 
 ### get packages
@@ -50,12 +51,9 @@ include_directories(
 ## Build ##
 ###########
 ### main
-add_library(${PROJECT_NAME}_constructor src/constructor.cpp)
-target_link_libraries(${PROJECT_NAME}_constructor ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
-add_library(${PROJECT_NAME}_methods src/methods.cpp)
-target_link_libraries(${PROJECT_NAME}_methods ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
-add_library(${PROJECT_NAME}_callbacks src/callbacks.cpp)
-target_link_libraries(${PROJECT_NAME}_callbacks ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
+set(COMMON_LIBS ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam)
+add_library(${PROJECT_NAME}_modules src/loop_closure.cpp src/fast_lio_sam.cpp)
+target_link_libraries(${PROJECT_NAME}_modules ${COMMON_LIBS})
 
 add_executable(${PROJECT_NAME}_node src/main.cpp)
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${EIGEN3_LIBS} gtsam ${PROJECT_NAME}_constructor ${PROJECT_NAME}_callbacks ${PROJECT_NAME}_methods)
+target_link_libraries(${PROJECT_NAME}_node ${COMMON_LIBS} ${PROJECT_NAME}_modules)

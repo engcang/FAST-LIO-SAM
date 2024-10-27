@@ -1,14 +1,23 @@
-map_frame: "map"                          # publish frame
+basic:
+  map_frame: "map"                          # publish frame
+  loop_update_hz: 2.0                       # Loop detection Hz
+  vis_hz: 1.0                               # visualize Hz
 
-loop_detection_radius: 35.0               # unit [meter] within this radius, check if loop or not
-loop_detection_timediff_threshold: 30.0   # unit [sec] check if two keyframes are loop if times are farther than this
-keyframe_threshold: 1.5                   # unit [meter] every this distance, generate keyframe
-icp_score_threshold: 1.0                  # lower is more accurate, for loop detection
-subkeyframes_number: 5                    # how many subkeyframes are merged to ICP with current keyframe (closest-this ~ closest+this, if exists)
+keyframe:
+  keyframe_threshold: 1.5                   # unit [meter] every this distance, generate keyframe
+  num_submap_keyframes: 5                   # how many subkeyframes are merged to ICP with current keyframe (closest-this ~ closest+this, if exists)
 
-loop_update_hz: 2.0                       # Loop detection Hz
-vis_hz: 1.0                               # visualize Hz
+loop:
+  loop_detection_radius: 35.0               # unit [meter] within this radius, check if loop or not
+  loop_detection_timediff_threshold: 30.0   # unit [sec] check if two keyframes are loop if times are farther than this
+
+icp:
+  icp_voxel_resolution: 0.3                 # unit [meter] for ICP
+  icp_score_threshold: 1.5                  # lower is more accurate, for loop detection
 
 result:
-  save_map_pcd: true                      # Save result map in .pcd format, not voxelized and hence file size could be huge
-  save_map_bag: true                      # Save result map in .bag format, NOTE: this is used for FAST-LIO-Localization-QN (https://github.com/engcang/FAST-LIO-Localization-QN)
+  save_voxel_resolution: 0.3                # voxel resolution to save map in .pcd format and visualize in rviz
+  save_map_pcd: true                        # Save result map in .pcd format, not voxelized and hence file size could be huge
+  save_map_bag: true                        # Save result map in .bag format, NOTE: this is used for FAST-LIO-Localization-QN (https://github.com/engcang/FAST-LIO-Localization-QN)
+  save_in_kitti_format: true                # Save result in KITTI format
+  seq_name: "sequence"                      # sequence name for saving scans and corresponding poses
